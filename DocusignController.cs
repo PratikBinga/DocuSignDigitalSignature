@@ -12,6 +12,8 @@ namespace DocusignDemo.Controllers
 {
     public class DocusignController : Controller
     {
+        public string _accountId = null;
+
         MyCredential credential = new MyCredential();
         private string INTEGRATOR_KEY = "b43a7a81-bd0a-4894-9d8d-b5eebff80d66";
         public ActionResult SendDocumentforSign()
@@ -62,6 +64,7 @@ namespace DocusignDemo.Controllers
                 if (loginAcct.IsDefault == "true")
                 {
                     accountId = loginAcct.AccountId;
+                    _accountId = accountId;
                     break;
                 }
             }
@@ -136,13 +139,17 @@ namespace DocusignDemo.Controllers
                 envDef.Recipients.Signers.Add(signer);
 
                 envDef.EventNotification = _eventNotification;
-
+                envDef.PurgeState = "documents_and_metadata_queued";
                 //set envelope status to "sent" to immediately send the signature request  
                 envDef.Status = "sent";
 
                 // |EnvelopesApi| contains methods related to creating and sending Envelopes (aka signature requests)  
                 EnvelopesApi envelopesApi = new EnvelopesApi();
                 EnvelopeSummary envelopeSummary = envelopesApi.CreateEnvelope(accountId, envDef, null);
+               // envelopesApi.Update("", "", new EnvelopesApi.UpdateOptions() { "purgeState": "documents_and_metadata_queued" });
+               // EnvelopesApi.UpdateOptions obj = new EnvelopesApi.UpdateOptions();
+               
+                //envelopesApi.DeleteDocuments(accountId, envelopeSummary.EnvelopeId, envDef);
                 if (envelopeSummary != null || envelopeSummary.EnvelopeId == null)
                 {
 
@@ -170,10 +177,22 @@ namespace DocusignDemo.Controllers
 
         }
 
+        // this method will be called when the recipient will sign or submit the document.
         [HttpPost]
-        public void UpdateStatus()
+        public void UpdateStatus(EnvelopesInformation info)
         {
+            
+            foreach (var item in info.Envelopes)
+            {
+                if (item.Status == "Completed")
+                {
+                    EnvelopesApi obj = new EnvelopesApi();
+                    item.PurgeState = "documents_and_metadata_queued";  
+                    EnvelopeUpdateSummary envelopeUpdateSummary = obj.Update(_accountId, item.EnvelopeId, null, null);
+                }
+            }
 
+           
         }
 
         [HttpGet]
